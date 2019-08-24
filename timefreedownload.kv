@@ -1,0 +1,194 @@
+<PG@BoxLayout>:
+
+<PGLabel@Label>:
+    size_hint_x: 0.6
+
+<Weekday@Button>
+    background_color: (0.0, 0.0, 0.0, 0.0)
+
+<MainScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        size: root.size
+
+        #Monday
+        BoxLayout:
+            padding : 20,0,20,20
+            Weekday:
+                text:"Monday"
+                size_hint_x : 0.2
+                color: 0,1,1,1
+                on_press: root.on_click_Mon()
+            BoxLayout:
+                orientation: "vertical"
+                BoxLayout:
+                    PG:
+                        Switch:
+                            id: ijuin
+                        PGLabel:
+                            text:"馬鹿力"
+                    PG:
+                        Switch:
+                            id: suda
+                        PGLabel:
+                            text:"菅田ANN"
+
+        #Tuesday
+        BoxLayout:
+            padding : 20,0,20,20
+            Weekday:
+                text:"Tuesday"
+                size_hint_x : 0.2
+                color: 0,1,1,1
+                on_press: root.on_click_Tue()
+            BoxLayout:
+                orientation: "vertical"
+                BoxLayout:
+                    PG:
+                        Switch:
+                            id: dcg
+                        PGLabel:
+                            text:"アルピーdcg"
+                    PG:
+                BoxLayout:
+                    PG:
+                        Switch:
+                            id: bm
+                        PGLabel:
+                            text:"カーボーイ"
+                    PG:
+                        Switch:
+                            id: gen
+                        PGLabel:
+                            text:"星野源ANN"
+
+        #Wednesday
+        BoxLayout:
+            padding : 20,0,20,20
+            Weekday:
+                text:"Wednesday"
+                size_hint_x : 0.2
+                color: 0,1,1,1
+                on_press: root.on_click_Wed()
+            BoxLayout:
+                orientation: "vertical"
+                BoxLayout:
+                    PG:
+                        Switch:
+                            id: giga
+                        PGLabel:
+                            text:"ギガボディ"
+                    PG:
+                BoxLayout:
+                    PG:
+                        Switch:
+                            id: fumou
+                        PGLabel:
+                            text:"不毛な議論"
+                    PG:
+                        Switch:
+                            id: nogiANN
+                        PGLabel:
+                            text:"乃木坂ANN"
+
+        #Thursday
+        BoxLayout:
+            padding : 20,0,20,20
+            Weekday:
+                text:"Thursday"
+                size_hint_x : 0.2
+                color: 0,1,1,1
+                on_press: root.on_click_Thu()
+
+            BoxLayout:
+                orientation: "vertical"
+                BoxLayout:
+                    PG:
+                        Switch:
+                            id: ht
+                        PGLabel:
+                            text:"ハライチ"
+                    PG:
+                BoxLayout:
+                    PG:
+                        Switch:
+                            id: megane
+                        PGLabel:
+                            text:"メガネびいき"
+                    PG:
+                        Switch:
+                            id: okamura
+                        PGLabel:
+                            text:"岡村ANN"
+
+        #Friday
+        BoxLayout:
+            padding : 20,0,20,20
+            Weekday:
+                text:"Friday"
+                size_hint_x : 0.2
+                color: 0,1,1,1
+                on_press: root.on_click_Fri()
+            BoxLayout:
+                orientation: "vertical"
+                BoxLayout:
+                    PG:
+                        Switch:
+                            id: banana
+                        PGLabel:
+                            text:"bananamoon"
+                    PG:
+                        Switch:
+                            id: 346
+                        PGLabel:
+                            text:"346ANN"
+
+        #Saturday
+        BoxLayout:
+            padding : 20,0,20,20
+            Weekday:
+                text:"Saturday"
+                size_hint_x : 0.2
+                color: 0,1,1,1
+                on_press: root.on_click_Sta()
+            BoxLayout:
+                orientation: "vertical"
+                BoxLayout:
+                    PG:
+                        Switch:
+                            id: elekata
+                        PGLabel:
+                            text:"エレ片"
+                    PG:
+                        Switch:
+                            id: kw
+                        PGLabel:
+                            text:"annkw"
+
+        #Sunday
+        BoxLayout:
+            padding : 20,0,20,20
+            Weekday:
+                text:"Sunday"
+                size_hint_x : 0.2
+                color: 0,1,1,1
+                on_press: root.on_click_Sun()
+
+            BoxLayout:
+
+        #Buttons
+        BoxLayout:
+            padding : 20,20,20,20
+            Button:
+                text:"DL"
+                font_size: 40
+                color: 0,1,1,1
+                size_hint_x: 2
+                on_press: root.on_click_DL()
+            BoxLayout:
+                orientation: "vertical"
+                Label:
+                    text:"a week ago"
+                Switch:
+                    active: False
+                    id: a_week_ago
