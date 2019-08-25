@@ -1,4 +1,4 @@
-﻿import base64
+import base64
 from datetime import datetime, date, timedelta
 import glob
 from multiprocessing import Pool
@@ -55,11 +55,15 @@ def LookForProgram(self,StaID,target,WeekDay):
             weekday = dummy_day.weekday()
             if weekday != WeekDay - 1: dummy_day = dummy_day - timedelta(days=1)
             else: break
+    i = 0
     while True:                                                         #番組検索
         day_fomat = '{0:%Y%m%d}'.format(dummy_day)
         xml = urllib.request.urlopen("http://radiko.jp/v3/program/station/date/"+day_fomat+"/"+StaID+".xml")
         soup = BeautifulSoup(xml, "xml").find(string = target)
-        if soup == None: dummy_day = dummy_day - timedelta(days=1)
+        if soup == None and i < 8:
+            dummy_day = dummy_day - timedelta(days=1)
+            i += 1
+        elif i == 8: return 1, 1
         else: break
     prog = soup.find_parent("prog")
     StartTime, EndTime = prog.get("ft"), prog.get("to")
@@ -74,6 +78,10 @@ def DL(self,StaID,target,title,WeekDay):
 
     #### LookForProgram ####
     StartTime, EndTime = LookForProgram(self,StaID,target,WeekDay)
+    if StartTime == 1:
+        print("\n"+target)
+        print("No program on the schedule")
+        return
     day = StartTime[:8]
     time1, time2 = int(StartTime[8]), int(StartTime[9])
     day = datetime.strptime(day,'%Y%m%d')
@@ -148,8 +156,8 @@ def aria2c_multi(n,object_list,AT):
         while i < (n+1)*leng:
             f.write(object_list[i]+ ('\n'))
             i += 1
-    cmd_aria2c = "aria2c --console-log-level='error' --download-result='hide' --header='X-Radiko-AuthToken: "+AT+"' -s 16 -j 16 "\
-                 "-x 16 -i "+cwd+"/temp/list_"+str(n)+".txt -d "+cwd+"/temp"
+    cmd_aria2c = "aria2c --console-log-level='error' --download-result='hide' --header='X-Radiko-AuthToken: "+AT+"' -s 16 -j 16 -x 16"
+                 " -i "+cwd+"/temp/list_"+str(n)+".txt -d "+cwd+"/temp"
     subprocess.call(cmd_aria2c, shell = True)
     return
 
