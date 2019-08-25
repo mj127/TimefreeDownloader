@@ -156,7 +156,7 @@ def aria2c_multi(n,object_list,AT):
         while i < (n+1)*leng:
             f.write(object_list[i]+ ('\n'))
             i += 1
-    cmd_aria2c = "aria2c --console-log-level='error' --download-result='hide' --header='X-Radiko-AuthToken: "+AT+"' -s 16 -j 16 -x 16"
+    cmd_aria2c = "aria2c --console-log-level='error' --download-result='hide' --header='X-Radiko-AuthToken: "+AT+"' -s 16 -j 16 -x 16"\
                  " -i "+cwd+"/temp/list_"+str(n)+".txt -d "+cwd+"/temp"
     subprocess.call(cmd_aria2c, shell = True)
     return
