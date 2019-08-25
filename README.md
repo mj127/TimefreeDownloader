@@ -10,7 +10,7 @@ DL後のファイルを結合するのにffmpegを用いています。
 
 プレミア会員限定の**エリアフリー機能には対応していません**。
 
-## Requirement
+## Requirements
 - ffmpeg
 - aria2c
 
