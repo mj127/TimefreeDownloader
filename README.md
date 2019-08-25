@@ -1,4 +1,4 @@
-# TimefreeDownload
+# TimefreeDownloader
 radiko.jpのタイムフリーをダウンロードするkivy(python GUI)アプリ。
 
 **個人での視聴目的以外では使用しないでください。またDLした番組を動画サイトなどで公開しないでください。**
