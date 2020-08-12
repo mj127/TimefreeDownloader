@@ -2,7 +2,7 @@
 radiko.jpのタイムフリーをダウンロードするkivy(python GUI)アプリ。
 
 **個人での視聴目的以外では使用しないでください。またDLした番組を動画サイトなどで公開しないでください。**
-<img str="https://github.com/mj127/TimefreeDownloader/blob/master/image.png" width=400px)
+<img str="https://github.com/mj127/TimefreeDownloader/blob/master/image.png" width=400px>
 
 ## Description
 事前登録しておいた番組を選択してDLボタンを押すだけで簡単にタイムフリーをダウンロードできます。  
