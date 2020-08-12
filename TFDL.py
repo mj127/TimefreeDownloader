@@ -32,7 +32,7 @@ class TimefreeDownloadApp(App):
 
 ################################################################################
 
-#Radiko.jp authrization
+#Radiko.jp authorization
 url1,url2 = "https://radiko.jp/v2/api/auth1","https://radiko.jp/v2/api/auth2"
 def Authorization():
     headers1 = {'X-Radiko-App':'pc_html5', 'X-Radiko-App-Version':'0.0.1', 'X-Radiko-User':'dummy', 'X-Radiko-Device':'pc'}
@@ -42,6 +42,8 @@ def Authorization():
     PartialKey = base64.b64encode(fullkey_pc.encode('utf-8')[o:o+l])
     headers2 = {'X-Radiko-AuthToken': AuthToken, 'X-Radiko-PartialKey': PartialKey, 'X-Radiko-User':'dummy','X-Radiko-Device':'pc'}
     response2 = requests.get(url2, headers = headers2)
+    print(response2.text)
+
     return AuthToken
 
 ################################################################################
@@ -80,7 +82,7 @@ def DL(self,StaID,target,title,WeekDay):
     StartTime, EndTime = LookForProgram(self,StaID,target,WeekDay)
     if StartTime == 1:
         print("\n"+target)
-        print("No program on the schedule")
+        print("ERROR: cannot find the program on the schedule")
         return
     day = StartTime[:8]
     time1, time2 = int(StartTime[8]), int(StartTime[9])
@@ -94,30 +96,31 @@ def DL(self,StaID,target,title,WeekDay):
     #### if the file already exists  ####
     if os.path.exists(path):
         print("\n"+target)
-        print("The program already exists.")
+        print("The program has already downloaded.")
     else:
         headers = {'X-Radiko-AuthToken': AT}
 
-        #### get url-chunk-list ####
+        #### get chunk-url-list ####
         url_timefree = "https://radiko.jp/v2/api/ts/playlist.m3u8?station_id="+StaID+"&l=15&ft="+StartTime+"&to="+EndTime
         res_timefree = requests.get(url_timefree, headers = headers)
         m3u8_link = re.search('https://radiko.jp/v2/api/ts/chunklist/[a-zA-Z0-9_/-]{1,61}.m3u8', res_timefree.text)
         if m3u8_link == None:
             print("\n"+title_full)
-            print(res_timefree.text + "\n")
+            print("ERROR: Radiko.jp says '"+res_timefree.text + "'\n")
             return
-        url_chunklist = m3u8_link.group()
+        chunk_url_list = m3u8_link.group()
         elapsed_time0 = time.time() - start
 
         #### aria2c ####
         start = time.time()
         print("\n"+title_full)
         print("aria2c...")
-        res_chunklist = requests.get(url_chunklist, headers = headers)
+        res_chunklist = requests.get(chunk_url_list, headers = headers)
         object_list = re.findall('https://media.radiko.jp/sound/[a-zA-Z0-9_/-]{1,61}.aac',res_chunklist.text)
-        args = [(i, object_list, AT) for i in range(2)]
+        args = [(i, object_list, AT) for i in range(4)]
         with Pool(processes=threads) as pool:
             pool.map(aria2c_wrapper, args)
+        pool.close()
         print("\n(Download is completed)")
         elapsed_time1 = time.time() - start
         sleep(0.02)
@@ -146,11 +149,14 @@ def DL(self,StaID,target,title,WeekDay):
     return
 
 ################################################################################
+
+#aria2c wrapper for multiprocessing
 def aria2c_wrapper(args):
     return aria2c_multi(*args)
 
 def aria2c_multi(n,object_list,AT):
-    leng = len(object_list)/2
+    cwd = os.getcwd()
+    leng = len(object_list)/4
     with open('./temp/list_' +str(n)+'.txt','w') as f:
         i = int(n*leng)
         while i < (n+1)*leng:
@@ -162,51 +168,66 @@ def aria2c_multi(n,object_list,AT):
     return
 
 ################################################################################
+
+# get IDs from timefreedownload.kv
+def getId():
+    f = open(cwd + "/timefreedownload.kv")
+    i = 0
+    dummy = []
+    lines = f.readlines()
+    for line in lines:
+        line = line.strip()
+        if line == "":
+            pass
+        elif line == "#ActionButton":
+            id_dic.setdefault("0",dummy)
+            return
+        elif line[0] == "i":
+            dummy.append(line[4:])
+        elif line[0] == "#":
+            if i != 0:  id_dic.setdefault(str(i),dummy)
+            dummy = []
+            i += 1
+
+################################################################################
 class MainScreen(Widget):
     def __init__(self):
         super(MainScreen,self).__init__()
+        getId()
 
     def on_click_Mon(self):
         bool[1] = not bool[1]
-        self.ids["ijuin"].active = bool[1]
-        self.ids["suda"].active = bool[1]
+        for id in id_dic["1"]: self.ids[id].active = bool[1]
         return
 
     def on_click_Tue(self):
         bool[2] = not bool[2]
-        self.ids["gen"].active = bool[2]
-        self.ids["dcg"].active = bool[2]
-        self.ids["bm"].active = bool[2]
+        for id in id_dic["2"]: self.ids[id].active = bool[2]
         return
 
     def on_click_Wed(self):
         bool[3] = not bool[3]
-        self.ids["giga"].active = bool[3]
-        self.ids["fumou"].active = bool[3]
-        self.ids["nogiANN"].active = bool[3]
+        for id in id_dic["3"]: self.ids[id].active = bool[3]
         return
 
     def on_click_Thu(self):
         bool[4] = not bool[4]
-        self.ids["ht"].active = bool[4]
-        self.ids["okamura"].active = bool[4]
-        self.ids["megane"].active = bool[4]
+        for id in id_dic["4"]: self.ids[id].active = bool[4]
         return
 
     def on_click_Fri(self):
         bool[5]= not bool[5]
-        self.ids["346"].active = bool[5]
-        self.ids["banana"].active = bool[5]
+        for id in id_dic["5"]: self.ids[id].active = bool[5]
         return
 
     def on_click_Sta(self):
         bool[6] = not bool[6]
-        self.ids["kw"].active = bool[6]
-        self.ids["elekata"].active = bool[6]
+        for id in id_dic["6"]: self.ids[id].active = bool[6]
         return
 
     def on_click_Sun(self):
         bool[0] = not bool[0]
+        for id in id_dic["0"]: self.ids[id].active = bool[0]
         return
 
     def on_click_DL(self):
@@ -232,7 +253,7 @@ class MainScreen(Widget):
         if self.ids["ht"].active:
             DL(self,"TBS","ハライチのターン！","ハライチのターン！_",0)
         if self.ids["okamura"].active:
-            DL(self,"LFR","ナインティナイン岡村隆史のオールナイトニッポン","ナインティナイン岡村隆史のオールナイトニッポン_",0)
+            DL(self,"LFR","ナインティナインのオールナイトニッポン","ナインティナインのオールナイトニッポン_",0)
         if self.ids["megane"].active:
             DL(self,"TBS","JUNK おぎやはぎのメガネびいき","おぎやはぎのメガネびいき_",0)
 
@@ -250,15 +271,15 @@ class MainScreen(Widget):
         return
 ################################################################################
 if __name__ == '__main__':
+    id_dic = {}
     bool = [False]*7
     cwd = os.getcwd()
     AT = Authorization()
-    if not os.path.exists('./temp'):
-        os.mkdir('./temp')
+    if not os.path.exists('./temp'): os.mkdir('./temp')
     filelist_in_temp = glob.glob('./temp/*.aac')
     for file in filelist_in_temp: os.remove(file)
-    if not os.path.exists('./Radio'):
-        os.mkdir('./Radio')
+    if not os.path.exists('./Radio'): os.mkdir('./Radio')
+
     output_file = cwd+"/Radio/"
     threads = 4
     TimefreeDownloadApp().run()
