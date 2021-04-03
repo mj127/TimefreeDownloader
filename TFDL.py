@@ -40,7 +40,7 @@ premiun_password = ''
 class TimefreeDownloadApp(App):
     def __init__(self, **kwargs):
         super(TimefreeDownloadApp,self).__init__(**kwargs)
-        if is_premium: self.title = 'Radio Timefree Download PREMIUN'
+        if is_premium: self.title = 'Radio Timefree Download PREMIUM'
         else: self.title = 'Radio Timefree Download'
 
     def build(self):
@@ -60,7 +60,6 @@ def checkRenew():
         with open(cwd+"/temp/makeKV/timestamp", mode='w') as t:
             t.write(mtime)
             t.close()
-    #print(renew)
     return renew
 
 def makeKV():
@@ -336,7 +335,6 @@ class MainScreen(Widget):
 ################################################################################
 
 if __name__ == '__main__':
-#    id_dic = {}
     cwd = os.getcwd()
     if checkRenew(): makeKV()
     bool = [False]*7
