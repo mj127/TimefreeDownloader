@@ -21,18 +21,103 @@ Window.size = (500,500)
 from kivy.core.text import LabelBase, DEFAULT_FONT
 from kivy.uix.widget import Widget
 
+# const
+from DownLoadList import *
+
 ################################################################################
+#                                                                              #
+#    If you want to use the 'Area Free', which is limited to the Radiko        #
+#    PREMIUM members, set the below two parameters.                            #
+#    If you do not have to use it, leave the parameters as default.            #
+#                                                                              #
+################################################################################
+
+premium_email    = ''
+premiun_password = ''
+
+################################################################################
+
 class TimefreeDownloadApp(App):
     def __init__(self, **kwargs):
         super(TimefreeDownloadApp,self).__init__(**kwargs)
-        self.title = 'Radio Timefree Download'
+        if is_premium: self.title = 'Radio Timefree Download PREMIUN'
+        else: self.title = 'Radio Timefree Download'
 
     def build(self):
         return MainScreen()
 
 ################################################################################
 
-#Radiko.jp authorization
+def checkRenew():
+    mtime = str(os.path.getmtime(cwd+"/DownLoadList.py"))
+    renew = 0
+    with open(cwd+"/temp/makeKV/timestamp") as r:
+        dummy = r.readline()
+        renew =  (mtime != dummy)
+        r.close()
+
+    if renew:
+        with open(cwd+"/temp/makeKV/timestamp", mode='w') as t:
+            t.write(mtime)
+            t.close()
+    #print(renew)
+    return renew
+
+def makeKV():
+    file_out = cwd+"/timefreedownload.kv"
+    with open(file_out, mode='w') as f:
+        with open(cwd+"/temp/makeKV/preamble.txt") as r0:
+            f.write(r0.read()+'\n')
+            r0.close()
+
+        for name,dict_ in DLL.items():
+            with open(cwd+"/temp/makeKV/day_preamble.txt") as r1:
+                f.write(r1.read())
+                r1.close()
+            f.write('                text:"%s"\n' %name)
+            f.write('                on_press: root.on_click_%s()\n' %name)
+            f.write('            BoxLayout:\n')
+            f.write('                orientation: "vertical"\n')
+
+            for dict in dict_:
+                for i, id in enumerate(dict):
+                    if i%2 == 0:
+                        f.write('                BoxLayout:\n')
+                    f.write('                    BoxLayout:\n')
+                    f.write('                        Switch:\n')
+                    f.write('                            id: %s\n' %id)
+                    f.write('                        PGLabel:\n')
+                    f.write('                            text:"%s"\n' %dict["%s" %id][0])
+                    if i == len(dict)-1 and i%2 == 0:
+                        f.write('                    BoxLayout:\n')
+        with open(cwd+"/temp/makeKV/postscript.txt") as r2:
+            f.write(r2.read())
+            r2.close()
+    print("## KV is revised ##")
+    return
+
+################################################################################
+
+# Login to the Radiko Premium members and get the cookies.
+def Premium_login(email, password):
+    global premium_cookie
+    global is_premium
+    print('## Radiko Premium Login ##')
+    session = requests.session()
+    user_data = {'mail':email, 'pass':password}
+    res = session.post('https://radiko.jp/ap/member/login/login',data = user_data)
+    if res.status_code != 200:
+        print('ERROR:%d cannot login to Premium' %res.status_code)
+        return
+
+    premium_cookie = session.cookies
+    is_premium = True
+    print('successfully logged in')
+    return
+
+################################################################################
+
+# Radiko.jp authorization: get the AuthToken which enables us to access the data.
 url1,url2 = "https://radiko.jp/v2/api/auth1","https://radiko.jp/v2/api/auth2"
 def Authorization():
     headers1 = {'X-Radiko-App':'pc_html5', 'X-Radiko-App-Version':'0.0.1', 'X-Radiko-User':'dummy', 'X-Radiko-Device':'pc'}
@@ -41,24 +126,25 @@ def Authorization():
     fullkey_pc = 'bcd151073c03b352e1ef2fd66c32209da9ca0afa'
     PartialKey = base64.b64encode(fullkey_pc.encode('utf-8')[o:o+l])
     headers2 = {'X-Radiko-AuthToken': AuthToken, 'X-Radiko-PartialKey': PartialKey, 'X-Radiko-User':'dummy','X-Radiko-Device':'pc'}
-    response2 = requests.get(url2, headers = headers2)
+    if is_premium: response2 = requests.get(url2, headers = headers2, cookies = premium_cookie)
+    else: response2 = requests.get(url2, headers = headers2)
     print(response2.text)
 
     return AuthToken
 
 ################################################################################
 
-#Find the target program from the radio schedule
+# Look for the target program from the radio schedule.
 def LookForProgram(self,StaID,target,WeekDay):
     dummy_day = date.today()
     if self.ids["a_week_ago"].active: dummy_day = dummy_day - timedelta(days=2)
-    if WeekDay != 0:                                                    #曜日指定
+    if WeekDay != 0:
         while True:
             weekday = dummy_day.weekday()
             if weekday != WeekDay - 1: dummy_day = dummy_day - timedelta(days=1)
             else: break
     i = 0
-    while True:                                                         #番組検索
+    while True:
         day_fomat = '{0:%Y%m%d}'.format(dummy_day)
         xml = urllib.request.urlopen("http://radiko.jp/v3/program/station/date/"+day_fomat+"/"+StaID+".xml")
         soup = BeautifulSoup(xml, "xml").find(string = target)
@@ -74,16 +160,45 @@ def LookForProgram(self,StaID,target,WeekDay):
 
 ################################################################################
 
-#Download the target
-def DL(self,StaID,target,title,WeekDay):
-    start = time.time()
+################################################################################
+#                                                                              #
+#    We use 'aria2c' as downloader and 'ffmpeg' to joint the data fragment     #
+#    into single output file. They are called with function 'subprocess'.      #
+#    The parameter 'threads' representes how many threads are uesd for them.   #
+#    Ajusting the parameter to your own environment may affect the             #
+#    downloading time.                                                         #
+#                                                                              #
+#    If you want to change the style of output file name, edit the definition  #
+#    of 'title_full' as you like. You can also change the parent directory     #
+#    of the output file by modifying the parameter 'output_folder'.            #
+#                                                                              #
+#    When you want to change the file format of the output file(e.g. mp3),     #
+#    edit extension in the definition of 'title_full' and change the options   #
+#    for ffmpeg command in 'cmd_ffmpeg'. To change the file fomat, we have     #
+#    to encode the audio file: taking external time to complete the task.      #
+#    Please reffer the document of ffmpeg for the detail of the options.       #
+#                                                                              #
+################################################################################
 
+def DLwrapper(self,List):
     #### LookForProgram ####
-    StartTime, EndTime = LookForProgram(self,StaID,target,WeekDay)
+    StartTime, EndTime = LookForProgram(self,List[0],List[1],List[3])
     if StartTime == 1:
         print("\n"+target)
         print("ERROR: cannot find the program on the schedule")
         return
+
+    # DL by time
+    if len(List) == 6:
+        StartTime = StartTime[:8] + List[4] + "00"
+        EndTime = EndTime[:8] + List[5] + "00"
+
+    DL(self,List[0],List[2],List[3],StartTime,EndTime)
+    return
+
+def DL(self,StaID,title,WeekDay,StartTime,EndTime):
+    start = time.time()
+
     day = StartTime[:8]
     time1, time2 = int(StartTime[8]), int(StartTime[9])
     day = datetime.strptime(day,'%Y%m%d')
@@ -91,11 +206,11 @@ def DL(self,StaID,target,title,WeekDay):
     day = datetime.strftime(day,'%Y_%m_%d')
 
     title_full = title+day+'.aac'                              #output file name
-    path = output_file+title_full                              #output file path
+    path = output_folder+title_full                            #output file path
 
     #### if the file already exists  ####
     if os.path.exists(path):
-        print("\n"+target)
+        print("\n"+title)
         print("The program has already downloaded.")
     else:
         headers = {'X-Radiko-AuthToken': AT}
@@ -136,7 +251,6 @@ def DL(self,StaID,target,title,WeekDay):
         cmd_ffmpeg = "ffmpeg -loglevel quiet -threads "+str(threads)+" -f concat -safe 0 -i "+list_aac_txt+" -acodec copy "+path
         subprocess.call(cmd_ffmpeg, shell = True)
         elapsed_time2 = time.time() - start
-        #os.remove(path)
 
         print("\n"+str(os.path.getsize(path)/1000000)+"MB")
         print("set_up:{0}".format(elapsed_time0) + "[sec]")
@@ -162,124 +276,82 @@ def aria2c_multi(n,object_list,AT):
         while i < (n+1)*leng:
             f.write(object_list[i]+ ('\n'))
             i += 1
-    cmd_aria2c = "aria2c --console-log-level='error' --download-result='hide' --header='X-Radiko-AuthToken: "+AT+"' -s 16 -j 16 -x 16"\
+    cmd_aria2c = "aria2c --console-log-level='error' --download-result='hide' --header='X-Radiko-AuthToken: "+AT+"' -s 16 -j 16 -x 16 -t 5"\
                  " -i "+cwd+"/temp/list_"+str(n)+".txt -d "+cwd+"/temp"
     subprocess.call(cmd_aria2c, shell = True)
     return
 
 ################################################################################
 
-# get IDs from timefreedownload.kv
-def getId():
-    f = open(cwd + "/timefreedownload.kv")
-    i = 0
-    dummy = []
-    lines = f.readlines()
-    for line in lines:
-        line = line.strip()
-        if line == "":
-            pass
-        elif line == "#ActionButton":
-            id_dic.setdefault("0",dummy)
-            return
-        elif line[0] == "i":
-            dummy.append(line[4:])
-        elif line[0] == "#":
-            if i != 0:  id_dic.setdefault(str(i),dummy)
-            dummy = []
-            i += 1
-
-################################################################################
 class MainScreen(Widget):
     def __init__(self):
         super(MainScreen,self).__init__()
-        getId()
 
     def on_click_Mon(self):
         bool[1] = not bool[1]
-        for id in id_dic["1"]: self.ids[id].active = bool[1]
+        for id in Mon[0]: self.ids[id].active = bool[1]
         return
 
     def on_click_Tue(self):
         bool[2] = not bool[2]
-        for id in id_dic["2"]: self.ids[id].active = bool[2]
+        for id in Tue[0]: self.ids[id].active = bool[2]
         return
 
     def on_click_Wed(self):
         bool[3] = not bool[3]
-        for id in id_dic["3"]: self.ids[id].active = bool[3]
+        for id in Wed[0]: self.ids[id].active = bool[3]
         return
 
     def on_click_Thu(self):
         bool[4] = not bool[4]
-        for id in id_dic["4"]: self.ids[id].active = bool[4]
+        for id in Thu[0]: self.ids[id].active = bool[4]
         return
 
     def on_click_Fri(self):
         bool[5]= not bool[5]
-        for id in id_dic["5"]: self.ids[id].active = bool[5]
+        for id in Fri[0]: self.ids[id].active = bool[5]
         return
 
     def on_click_Sta(self):
         bool[6] = not bool[6]
-        for id in id_dic["6"]: self.ids[id].active = bool[6]
+        for id in Sat[0]: self.ids[id].active = bool[6]
         return
 
     def on_click_Sun(self):
         bool[0] = not bool[0]
-        for id in id_dic["0"]: self.ids[id].active = bool[0]
+        for id in Sun[0]: self.ids[id].active = bool[0]
         return
 
+    # Actions when DL button is clicked
     def on_click_DL(self):
-        if self.ids["suda"].active:
-            DL(self,"LFR","菅田将暉のオールナイトニッポン","菅田将暉のオールナイトニッポン_",0)
-        if self.ids["ijuin"].active:
-            DL(self,"TBS","JUNK 伊集院光・深夜の馬鹿力","伊集院光・深夜の馬鹿力_",0)
+        for name,dict_ in DLL.items():
+            for dict in dict_:
+                for id in dict:
+                    if self.ids["%s" %id].active: DLwrapper(self,dict["%s" %id][1])
 
-        if self.ids["dcg"].active:
-            DL(self,"TBS","アルコ＆ピース D.C.GARAGE","アルコ＆ピース_D.C.GARAGE_",0)
-        if self.ids["gen"].active:
-            DL(self,"LFR","星野源のオールナイトニッポン","星野源のオールナイトニッポン_",0)
-        if self.ids["bm"].active:
-            DL(self,"TBS","JUNK 爆笑問題カーボーイ","爆笑問題カーボーイ_",0)
-
-        if self.ids["giga"].active:
-            DL(self,"TBS","うしろシティ 星のギガボディ","うしろシティ_星のギガボディ_",0)
-        if self.ids["nogiANN"].active:
-            DL(self,"LFR","乃木坂46のオールナイトニッポン","乃木坂46のオールナイトニッポン_",0)
-        if self.ids["fumou"].active:
-            DL(self,"TBS","JUNK 山里亮太の不毛な議論","山里亮太の不毛な議論_",0)
-
-        if self.ids["ht"].active:
-            DL(self,"TBS","ハライチのターン！","ハライチのターン！_",0)
-        if self.ids["okamura"].active:
-            DL(self,"LFR","ナインティナインのオールナイトニッポン","ナインティナインのオールナイトニッポン_",0)
-        if self.ids["megane"].active:
-            DL(self,"TBS","JUNK おぎやはぎのメガネびいき","おぎやはぎのメガネびいき_",0)
-
-        if self.ids["346"].active:
-            DL(self,"LFR","三四郎のオールナイトニッポン","三四郎のオールナイトニッポン_",0)
-        if self.ids["banana"].active:
-            DL(self,"TBS","JUNK バナナマンのバナナムーンGOLD","バナナマンのバナナムーンGOLD_",0)
-
-        if self.ids["kw"].active:
-            DL(self,"LFR","オードリーのオールナイトニッポン","オードリーのオールナイトニッポン_",0)
-        if self.ids["elekata"].active:
-            DL(self,"TBS","JUNKサタデー　エレ片のコント太郎","エレ片のコント太郎_",0)
 
         print("\nAll completed")
         return
+
 ################################################################################
+
 if __name__ == '__main__':
-    id_dic = {}
-    bool = [False]*7
+#    id_dic = {}
     cwd = os.getcwd()
+    if checkRenew(): makeKV()
+    bool = [False]*7
+    is_premium = False
+    premium_cookie = {}
+
+    if premium_email != '' and premiun_password != '':
+        Premium_login(premium_email, premiun_password)
     AT = Authorization()
+
     if not os.path.exists('./temp'): os.mkdir('./temp')
     filelist_in_temp = glob.glob('./temp/*.aac')
     for file in filelist_in_temp: os.remove(file)
     if not os.path.exists('./Radio'): os.mkdir('./Radio')
 
-    output_file = cwd+"/Radio/"
+    output_folder = cwd+"/Radio/"
     threads = 4
     TimefreeDownloadApp().run()

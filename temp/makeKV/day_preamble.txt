@@ -1,0 +1,5 @@
+        BoxLayout:
+            padding : 20,0,20,20
+            Weekday:
+                size_hint_x : 0.2
+                color: 0,1,1,1
