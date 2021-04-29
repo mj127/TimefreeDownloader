@@ -18,6 +18,7 @@ DL後のファイルを結合するのにffmpegを用いています。
 
 以下は python
 - BeautifulSoup
+- lxml
 - kivy
 - japanize-kivy
 
