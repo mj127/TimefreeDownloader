@@ -311,7 +311,7 @@ class MainScreen(Widget):
         for id in Fri[0]: self.ids[id].active = bool[5]
         return
 
-    def on_click_Sta(self):
+    def on_click_Sat(self):
         bool[6] = not bool[6]
         for id in Sat[0]: self.ids[id].active = bool[6]
         return
